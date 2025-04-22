@@ -1,0 +1,45 @@
+body {
+    width: 230px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #f0f0f0;
+    margin: 10px;
+    font-family: sans-serif;
+  }
+  
+  h1 {
+    font-size: 16px;
+    color: black;
+    margin: 10px 0;
+  }
+
+  .alergens-box{
+    display: flex;
+  }
+
+  .alergens{
+    flex: 1;
+    text-align: center;
+    margin: 5px;
+    background-color: gray;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+  }
+
+  .alergens:hover{
+    background-color: rgb(71, 68, 68);
+  }
+
+  .selected{
+    background-color: rgb(95, 201, 156) !important;
+  }
+
+  .selected:hover{
+    background-color: rgb(47, 121, 90) !important;
+  }
+  
