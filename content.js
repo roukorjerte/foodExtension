@@ -112,8 +112,12 @@ async function fetchIngredients(link) {
         const doc = new DOMParser().parseFromString(html, "text/html");
 
         // Попытка найти состав (зависит от сайта, подстрой потом под каждый)
-        const ingrElement = doc.querySelector("body > div:nth-child(4) > div:nth-child(1) > div:nth-child(6) > div:nth-child(1) > div:nth-child(4) > div:nth-child(4) > dl:nth-child(3) > dd:nth-child(4)")
-            || doc.querySelector(".b-product-info--info-2");
+        const ingrElement = [...doc.querySelectorAll('.heading')].find(el => el.textContent.includes('Sastāvdaļas'))?.nextElementSibling?.querySelector('li > div > p')
+            || [...doc.querySelectorAll('.b-product-info--info-3-title')].find(el => el.textContent.includes('Sastāvdaļas'))?.nextElementSibling;
+
+            const testHeading = [...doc.querySelectorAll('.side-cart-adapt product-tabs')];
+    console.log("Найденный heading:", testHeading);
+
 
         if (ingrElement) {
             return ingrElement.textContent.trim();
