@@ -1,75 +1,130 @@
+// === Конфигурация сайтов ===
 const selectors = [
-    { hosts: ["rimi.lv", "www.rimi.lv"], pathStart: "/e-veikals", productName: ".card__name", productLink: "a.card__url.js-gtm-eec-product-click" },
-    { hosts: ["rimi.ee", "www.rimi.ee"], pathStart: "/epood", productName: ".card__name" }, //тут добавь продукт линк селектор
-    { hosts: ["barbora.lv", "barbora.lt", "www.barbora.lv", "www.barbora.lt"], pathStart: "", productName: ".tw-block" } //тут добавь продукт линк селектор
+    {
+        hosts: ["rimi.lv", "www.rimi.lv"],
+        pathStart: "/e-veikals",
+        cardSelector: ".js-product-container.card",
+        extract: (card) => {
+            const name = card.querySelector(".card__name")?.textContent?.trim();
+            const link = card.querySelector("a.card__url")?.href;
+            return { name, link };
+        }
+    },
+    {
+        hosts: ["rimi.ee", "www.rimi.ee"],
+        pathStart: "/epood",
+        cardSelector: ".js-product-container.card",
+        extract: (card) => {
+            const name = card.querySelector(".card__name")?.textContent?.trim();
+            const link = card.querySelector("a.card__url")?.href;
+            return { name, link };
+        }
+    }, //p.s. I haven't tested the selectors for estonian rimi, but I am 70% sure they are the same
+    {
+        hosts: ["barbora.lv", "barbora.lt", "www.barbora.lv", "www.barbora.lt"],
+        pathStart: "",
+        cardSelector: ".tw-flex.tw-shrink-0.tw-grow.tw-basis-auto.tw-flex-col.tw-pb-2",
+        extract: (card) => {
+            const name = card.querySelector(".tw-block")?.textContent?.trim();
+            const link = card.querySelector("a")?.href;
+            return { name, link };
+        }
+    }
 ];
 
 const currentHost = window.location.hostname;
 const currentPath = window.location.pathname;
 
-let siteNameSelector = null;
-let sitelinkSelector = null;
-
 console.log("💡 content.js загружен на", window.location.href);
 
-// Определяем нужный селектор для текущего сайта
+let siteConfig = null;
+
 for (const site of selectors) {
     if (site.hosts.includes(currentHost)) {
         if (!site.pathStart || currentPath.startsWith(site.pathStart)) {
-            siteNameSelector = site.productName;
-            sitelinkSelector = site.productLink;
+            siteConfig = site;
             break;
         }
     }
 }
 
-if (siteNameSelector) {
-    console.log("🔍 Ищем товары с селектором:", siteNameSelector);
-    startScraping(siteNameSelector, sitelinkSelector);
+if (siteConfig) {
+    console.log("🔍 Ищем карточки с селектором:", siteConfig.cardSelector);
+    startScraping(siteConfig);
 } else {
     console.log("⚠️ В моем словаре нет этого сайта.");
 }
 
-function startScraping(nameSelector, linkSelector) {
+// === Сбор карточек и слежка ===
+
+function startScraping(site) {
     const seen = new Set();
-    // const handleNewElement;
-    const handleNewElement = (element) => {
-        if (!seen.has(element)) {
-            seen.add(element);
-            const name = element.textContent.trim();
-            console.log("🆕 Новый товар:", name);
-        }
+    let productId = 1;
+    localStorage.setItem("products", JSON.stringify([]));
+
+    const saveProduct = async (name, link) => {
+        const ingredients = await fetchIngredients(link);
+        const product = {
+            id: productId++,
+            name: name || "",
+            link: link || "",
+            ingridients: ingredients || "",
+            status: 1
+        };
+
+        const data = JSON.parse(localStorage.getItem("products")) || [];
+        data.push(product);
+        localStorage.setItem("products", JSON.stringify(data));
+        console.log("💾 Сохранён продукт:", product);
     };
 
-    // Проверка и сбор уже существующих элементов
+    const handleCard = (card) => {
+        if (seen.has(card)) return;
+        seen.add(card);
+
+        const { name, link } = site.extract(card);
+
+        if (!name && !link) return;
+
+        saveProduct(name, link);
+    };
+
     const initialCheck = () => {
-        const elementsNames = document.querySelectorAll(nameSelector);
-        const elementsLinks = document.querySelectorAll(linkSelector);
-        elementsNames.forEach(handleNewElement);
-        console.log("функция имени отработала");
-        elementsLinks.forEach(handleNewElement);
-        console.log("функция ссылки отработала");
-
+        document.querySelectorAll(site.cardSelector).forEach(handleCard);
+        console.log("🚀 Изначальная проверка карточек завершена");
     };
 
-    initialCheck();
-
-    // Подключаем MutationObserver для отслеживания новых товаров
     const observer = new MutationObserver(() => {
-        const elements = document.querySelectorAll(nameSelector);
-        const elementsLinks = document.querySelectorAll(linkSelector);
-        elements.forEach(handleNewElement);
-        elementsLinks.forEach(handleNewElement);
+        document.querySelectorAll(site.cardSelector).forEach(handleCard);
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    console.log("👀 Слежка за DOM запущена. Все новые товары будут отображаться в консоли.");
+    initialCheck();
+    console.log("👀 Слежка за карточками запущена.");
 }
 
-// ============================
-// 🧭 Поддержка SPA-навигации
-// ============================
+async function fetchIngredients(link) {
+    if (!link) return "";
+    try {
+        const res = await fetch(link);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+
+        // Попытка найти состав (зависит от сайта, подстрой потом под каждый)
+        const ingrElement = doc.querySelector("body > div:nth-child(4) > div:nth-child(1) > div:nth-child(6) > div:nth-child(1) > div:nth-child(4) > div:nth-child(4) > dl:nth-child(3) > dd:nth-child(4)")
+            || doc.querySelector(".b-product-info--info-2");
+
+        if (ingrElement) {
+            return ingrElement.textContent.trim();
+        }
+    } catch (e) {
+        console.warn("❌ Не удалось получить состав:", e);
+    }
+    return "";
+}
+
+// === SPA-навигация ===
 
 function onUrlChange(callback) {
     const pushState = history.pushState;
@@ -90,26 +145,5 @@ function onUrlChange(callback) {
 
 onUrlChange(() => {
     console.log("🔄 URL изменился:", window.location.href);
-
-    // Повторяем ту же логику при смене URL
-    const newPath = window.location.pathname;
-    let newNameSelector = null;
-    let newLinkSelector = null;
-
-    for (const site of selectors) {
-        if (site.hosts.includes(currentHost)) {
-            if (!site.pathStart || newPath.startsWith(site.pathStart)) {
-                newNameSelector = site.productName;
-                newLinkSelector = site.productLink;
-                break;
-            }
-        }
-    }
-
-    if (newNameSelector) {
-        console.log("🔁 Перезапуск сбора данных для нового селектора:", newNameSelector);
-        startScraping(newNameSelector);
-    } else {
-        console.log("⚠️ Селектор не найден после смены URL.");
-    }
+    window.location.reload(); // просто перезагружаем расширение
 });
