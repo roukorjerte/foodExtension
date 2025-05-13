@@ -1,14 +1,14 @@
 const selectors = [
-    { hosts: ["rimi.lv", "www.rimi.lv"], pathStart: "/e-veikals", selector: ".card__name" },
-    { hosts: ["rimi.ee", "www.rimi.ee"], pathStart: "/epood", selector: ".card__name" },
-    { hosts: ["barbora.lv", "barbora.lt", "www.barbora.lv", "www.barbora.lt"], pathStart: "", selector: ".tw-block" }
-    // { hosts: ["ventspils.citro.lv", "rezekne.citro.lv", "www.ventspils.citro.lv", "www.rezekne.citro.lv"], pathStart: "", selector: ".woocommerce-loop-product__title" },
+    { hosts: ["rimi.lv", "www.rimi.lv"], pathStart: "/e-veikals", productName: ".card__name", productLink: "a.card__url.js-gtm-eec-product-click" },
+    { hosts: ["rimi.ee", "www.rimi.ee"], pathStart: "/epood", productName: ".card__name" }, //тут добавь продукт линк селектор
+    { hosts: ["barbora.lv", "barbora.lt", "www.barbora.lv", "www.barbora.lt"], pathStart: "", productName: ".tw-block" } //тут добавь продукт линк селектор
 ];
 
 const currentHost = window.location.hostname;
 const currentPath = window.location.pathname;
 
-let siteSelector = null;
+let siteNameSelector = null;
+let sitelinkSelector = null;
 
 console.log("💡 content.js загружен на", window.location.href);
 
@@ -16,22 +16,23 @@ console.log("💡 content.js загружен на", window.location.href);
 for (const site of selectors) {
     if (site.hosts.includes(currentHost)) {
         if (!site.pathStart || currentPath.startsWith(site.pathStart)) {
-            siteSelector = site.selector;
+            siteNameSelector = site.productName;
+            sitelinkSelector = site.productLink;
             break;
         }
     }
 }
 
-if (siteSelector) {
-    console.log("🔍 Ищем товары с селектором:", siteSelector);
-    startScraping(siteSelector);
+if (siteNameSelector) {
+    console.log("🔍 Ищем товары с селектором:", siteNameSelector);
+    startScraping(siteNameSelector, sitelinkSelector);
 } else {
     console.log("⚠️ В моем словаре нет этого сайта.");
 }
 
-function startScraping(selector) {
+function startScraping(nameSelector, linkSelector) {
     const seen = new Set();
-
+    // const handleNewElement;
     const handleNewElement = (element) => {
         if (!seen.has(element)) {
             seen.add(element);
@@ -42,16 +43,23 @@ function startScraping(selector) {
 
     // Проверка и сбор уже существующих элементов
     const initialCheck = () => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(handleNewElement);
+        const elementsNames = document.querySelectorAll(nameSelector);
+        const elementsLinks = document.querySelectorAll(linkSelector);
+        elementsNames.forEach(handleNewElement);
+        console.log("функция имени отработала");
+        elementsLinks.forEach(handleNewElement);
+        console.log("функция ссылки отработала");
+
     };
 
     initialCheck();
 
     // Подключаем MutationObserver для отслеживания новых товаров
     const observer = new MutationObserver(() => {
-        const elements = document.querySelectorAll(selector);
+        const elements = document.querySelectorAll(nameSelector);
+        const elementsLinks = document.querySelectorAll(linkSelector);
         elements.forEach(handleNewElement);
+        elementsLinks.forEach(handleNewElement);
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
@@ -85,20 +93,22 @@ onUrlChange(() => {
 
     // Повторяем ту же логику при смене URL
     const newPath = window.location.pathname;
-    let newSelector = null;
+    let newNameSelector = null;
+    let newLinkSelector = null;
 
     for (const site of selectors) {
         if (site.hosts.includes(currentHost)) {
             if (!site.pathStart || newPath.startsWith(site.pathStart)) {
-                newSelector = site.selector;
+                newNameSelector = site.productName;
+                newLinkSelector = site.productLink;
                 break;
             }
         }
     }
 
-    if (newSelector) {
-        console.log("🔁 Перезапуск сбора данных для нового селектора:", newSelector);
-        startScraping(newSelector);
+    if (newNameSelector) {
+        console.log("🔁 Перезапуск сбора данных для нового селектора:", newNameSelector);
+        startScraping(newNameSelector);
     } else {
         console.log("⚠️ Селектор не найден после смены URL.");
     }
