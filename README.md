@@ -57,15 +57,6 @@ Feel free to open an issue if you:
 
 ---
 
-## 📸 Screenshots
-
-![Barbora example](./screenshots/barbora-highlighted.png)  
-*Barbora product cards with detected allergens marked in red.*
-
-![Rimi example](./screenshots/rimi-highlighted.png)  
-*Rimi product cards scanned and marked inline.*
-
----
 
 ## 🧠 Why I Made This
 
